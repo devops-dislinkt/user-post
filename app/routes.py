@@ -1,10 +1,13 @@
-from flask import jsonify, request
-from app import app, posts_col
+from flask import jsonify, request, current_app, Blueprint, g
+# from app import app, posts_col
 from pymongo.errors import DuplicateKeyError
 from bson.objectid import ObjectId
 import json
+from app import mongo_api
 
-@app.route('/add', methods=['POST'])
+api = Blueprint('api', __name__)
+
+@api.route('/add', methods=['POST'])
 def create():
     """
         create() : Add document to Firestore collection with request body.
@@ -22,25 +25,25 @@ def create():
                     }
     """
     try:
-        posts_col.insert_one(request.json)                
+         mongo_api.collection('posts').insert_one(request.json)                
     except DuplicateKeyError:
         return jsonify("username not unique"), 400
     return jsonify({"success": True}), 200
 
-@app.route('/list', methods=['GET'])
+@api.route('/list', methods=['GET'])
 def read():
     """
         read() : Fetches documents from Firestore collection as JSON.
     """
     try:
-        posts_documents = posts_col.find()
+        posts_documents = mongo_api.collection('posts').find()
         posts: list[dict] = [post_document for post_document in posts_documents]
         for post in posts: post['_id'] = str(post['_id'])
         return jsonify(posts), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
         
-@app.route('/like', methods=['POST'])
+@api.route('/like', methods=['POST'])
 def like_post():
     """
         like_post() : Add username in post 'likes' array filed.
@@ -54,14 +57,14 @@ def like_post():
         post_id = request.json['post_id']
         username = request.json['username'] 
 
-        posts_col.update_one({'_id': ObjectId(post_id)}, {'$push': {'like': username}})
-        posts_col.update_one({'_id': ObjectId(post_id)}, {'$pull': {'dislike': username}})
+        mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$push': {'like': username}})
+        mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$pull': {'dislike': username}})
 
         return jsonify({"success": True}), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@app.route('/dislike', methods=['POST'])
+@api.route('/dislike', methods=['POST'])
 def dislike_post():
     """
         dislike_post() : Add username in post 'dislikes' array filed.
@@ -75,14 +78,14 @@ def dislike_post():
         post_id = request.json['post_id']
         username = request.json['username']
 
-        posts_col.update_one({'_id': ObjectId(post_id)}, {'$push': {'dislike': username}})
-        posts_col.update_one({'_id': ObjectId(post_id)}, {'$pull': {'like': username}})
+        mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$push': {'dislike': username}})
+        mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$pull': {'like': username}})
 
         return jsonify({"success": True}), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@app.route('/comment', methods=['POST'])
+@api.route('/comment', methods=['POST'])
 def post_comment():
     """
         post_comment() : Add a comment to the post.
@@ -98,13 +101,13 @@ def post_comment():
         comment = request.json['comment']
         
         comment_obj = {"username": username,"comment": comment}
-        posts_col.update_one({'_id': ObjectId(post_id)}, {'$push': {'comments': comment_obj}})
+        mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$push': {'comments': comment_obj}})
 
         return jsonify({"success": True}), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@app.route('/comment', methods=['DELETE'])
+@api.route('/comment', methods=['DELETE'])
 def delete_comment():
     """
         delete_comment() : Deletes a comment.
@@ -120,13 +123,13 @@ def delete_comment():
         comment = request.json['comment']
         
         comment_obj = {"username": username,"comment": comment}
-        posts_col.update_one({'_id': ObjectId(post_id)}, {'$pull': {'comments': comment_obj}})
+        mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$pull': {'comments': comment_obj}})
 
         return jsonify({"success": True}), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@app.route('/delete', methods=['GET', 'DELETE'])
+@api.route('/delete', methods=['GET', 'DELETE'])
 def delete():
     """
         delete() : Delete a document from Firestore collection.
@@ -134,13 +137,13 @@ def delete():
     """
     try:
         doc_id = request.args.get('id')        
-        posts_col.delete_one({ "_id": ObjectId(doc_id)}) 
+        mongo_api.collection('posts').delete_one({ "_id": ObjectId(doc_id)}) 
 
         return jsonify({"success": True}), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@app.route('/update', methods=['POST', 'PUT'])
+@api.route('/update', methods=['POST', 'PUT'])
 def update():
     """
         update() : Update document in Firestore collection with request body.
@@ -159,7 +162,7 @@ def update():
 
         newvalues = { "$set": request.json }
 
-        posts_col.update_one(myquery, newvalues)
+        mongo_api.collection('posts').update_one(myquery, newvalues)
         
         return jsonify({"success": True}), 200
     except Exception as e:
