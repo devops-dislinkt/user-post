@@ -1,27 +1,10 @@
-'''from flask import Flask
-from os import environ
-import pymongo 
-
-environ['FLASK_ENV'] = 'development'
-app = Flask(__name__)
-
-app.config['JSON_AS_ASCII'] = False
-app.config['SECRET_KEY'] = environ['FLASK_SECRET_KEY'] if 'FLASK_SECRET_KEY' in environ else 'my_secret_key'
-app.config['HOST']  = environ['FLASK_DATABASE_HOST'] if 'FLASK_DATABASE_HOST' in environ else 'localhost'
-
-#con = pymongo.MongoClient(f"mongodb://root:password@{app.config['HOST']}:27017/")
-con = pymongo.MongoClient('localhost', 27017)
-
-posts_col = con['user_post']['posts']
-
-from app import routes'''
-
 from typing_extensions import Literal
 from app.MongoApi import MongoApi
 from flask import Flask, g
 from os import environ
 from pymongo.collection import Collection
 from pymongo.mongo_client import MongoClient
+from flask_cors import CORS
 
 mongo_api = MongoApi(None, None)
 
@@ -30,6 +13,7 @@ def create_app(env: Literal['prod', 'test'] = 'prod'):
 
     # environ['FLASK_ENV'] = 'development'
     flask_app = Flask(__name__)
+    CORS(flask_app)
 
     flask_app.config['JSON_AS_ASCII'] = False
     flask_app.config['SECRET_KEY'] = environ['FLASK_SECRET_KEY'] if 'FLASK_SECRET_KEY' in environ else 'my_secret_key'
