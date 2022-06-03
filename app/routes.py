@@ -3,6 +3,7 @@ from flask import jsonify, request, current_app, Blueprint, g
 from pymongo.errors import DuplicateKeyError
 from bson.objectid import ObjectId
 import json
+from datetime import datetime
 from app import mongo_api
 
 api = Blueprint('api', __name__)
@@ -25,6 +26,7 @@ def create():
                     }
     """
     try:
+         request.json['date'] = datetime.today().replace(microsecond=0)
          mongo_api.collection('posts').insert_one(request.json)                
     except DuplicateKeyError:
         return jsonify("username not unique"), 400
@@ -100,7 +102,11 @@ def post_comment():
         username = request.json['username']
         comment = request.json['comment']
         
-        comment_obj = {"username": username,"comment": comment}
+        comment_obj = {
+                        "username": username,
+                        "comment": comment, 
+                        'date': datetime.today().replace(microsecond=0)
+                      }
         mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$push': {'comments': comment_obj}})
 
         return jsonify({"success": True}), 200
@@ -132,7 +138,7 @@ def delete_comment():
 @api.route('/delete', methods=['GET', 'DELETE'])
 def delete():
     """
-        delete() : Delete a document from Firestore collection.
+        delete() : Delete a document from collection.
         e.g. = http://localhost/delete?id=post1
     """
     try:
@@ -146,7 +152,7 @@ def delete():
 @api.route('/update', methods=['POST', 'PUT'])
 def update():
     """
-        update() : Update document in Firestore collection with request body.
+        update() : Update document in collection with request body.
         Ensure you pass a custom ID as part of json body in post request,
         e.g. json=  {
                         "id": "post1",
