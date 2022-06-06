@@ -35,7 +35,7 @@ def create():
 @api.route('/list', methods=['GET'])
 def read():
     """
-        read() : Fetches documents from Firestore collection as JSON.
+        read() : Fetches documents from collection as JSON.
     """
     try:
         posts_documents = mongo_api.collection('posts').find()
@@ -45,6 +45,20 @@ def read():
     except Exception as e:
         return f"An Error Occurred: {e}"
         
+@api.route('/find', methods=['GET'])
+def find():
+    """
+        delete() : Fetches one documents from collection as JSON.
+        e.g. = http://localhost/find?id=post1
+    """
+    try:
+        doc_id = request.args.get('id')        
+        document = mongo_api.collection('posts').find_one({ "_id": ObjectId(doc_id)}) 
+        document['_id'] = str(document['_id'])
+        return jsonify(document), 200
+    except Exception as e:
+        return f"An Error Occurred: {e}"
+
 @api.route('/like', methods=['POST'])
 def like_post():
     """
