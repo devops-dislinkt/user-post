@@ -4,7 +4,7 @@ from flask import Flask, g
 from os import environ
 from pymongo.collection import Collection
 from pymongo.mongo_client import MongoClient
-from flask_cors import CORS
+# from flask_cors import CORS
 
 mongo_api = MongoApi(None, None)
 
