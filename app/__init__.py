@@ -10,7 +10,6 @@ mongo_api = MongoApi(None, None)
 
 def create_app(env: Literal['prod', 'test'] = 'prod'):
     from . import routes
-
     # environ['FLASK_ENV'] = 'development'
     flask_app = Flask(__name__)
     # CORS(flask_app)
