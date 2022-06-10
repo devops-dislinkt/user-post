@@ -187,3 +187,11 @@ def update():
         return jsonify({"success": True}), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
+
+# allow all origin
+@api.after_request
+def after_request(response):
+    header = response.headers
+    header['Access-Control-Allow-Origin'] = '*'
+    header['Access-Control-Allow-Headers'] = '*'
+    return response
