@@ -2,4 +2,5 @@ Flask==2.0.2
 pymongo==4.1.1
 pytest==7.1.2
 pytest-env==0.6.2
-opentelemetry-instrumentation-flask
+jaeger-client
+Flask-Opentracing
