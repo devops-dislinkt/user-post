@@ -4,13 +4,12 @@ from flask import Flask, g
 from os import environ
 from pymongo.collection import Collection
 from pymongo.mongo_client import MongoClient
-from flask_cors import CORS
+# from flask_cors import CORS
 
 mongo_api = MongoApi(None, None)
 
 def create_app(env: Literal['prod', 'test'] = 'prod'):
     from . import routes
-
     # environ['FLASK_ENV'] = 'development'
     flask_app = Flask(__name__)
     # CORS(flask_app)
