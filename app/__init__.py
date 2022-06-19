@@ -20,7 +20,7 @@ def create_app(env: Literal['prod', 'test'] = 'prod'):
     flask_app.config['KAFKA'] = environ['KAFKA']
     flask_app.config['KAFKA_TOPIC'] = environ['KAFKA_TOPIC']
 
-    DATABASE_CONNECTION_URI = f"mongodb://root:password@{flask_app.config['HOST']}:27017/"
+    DATABASE_CONNECTION_URI = f"mongodb://root:password@{flask_app.config['HOST']}:27018/"
 
     with flask_app.app_context():
         # setup connection

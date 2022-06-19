@@ -15,7 +15,8 @@ if __name__ == '__main__':
                 'reporting_host': 'jaeger',  # ili u ENV dodati IP adresu kontejnera
                 'reporting_port': '6831'
             },
-            'logging': True
+            'logging': True,
+            'service_name': 'user-post'
         }
     )
 

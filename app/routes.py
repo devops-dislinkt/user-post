@@ -1,12 +1,18 @@
 from flask import jsonify, request, current_app, Blueprint, g
 # from app import app, posts_col
 from pymongo.errors import DuplicateKeyError
+from kafka.errors import KafkaError
 from bson.objectid import ObjectId
 import json
 from datetime import datetime
 from app import mongo_api
+from app.kafka_utils import create_producer
+from os import environ
 
 api = Blueprint('api', __name__)
+
+
+producer = create_producer()
 
 @api.route('/add', methods=['POST'])
 def create():
@@ -25,11 +31,17 @@ def create():
                         "comments": [{"username": "user2","comment": "comment2"},{"username": "user10","comment": "comment10"}]
                     }
     """
+    user: str = request.headers.get("user")
     try:
-         request.json['date'] = datetime.today().replace(microsecond=0)
-         mongo_api.collection('posts').insert_one(request.json)                
+        request.json['date'] = datetime.today().replace(microsecond=0)
+        post = mongo_api.collection('posts').insert_one(request.json)
+
+        if (producer):
+            producer.send(environ['KAFKA_TOPIC'], {'username': user, 'post_title': request.json['title'], 'post_id': str(post.inserted_id) })
     except DuplicateKeyError:
         return jsonify("username not unique"), 400
+    except KafkaError as err:
+         print("kafka producer - Exception during sending message to producer - {}".format(err)) 
     return jsonify({"success": True}), 200
 
 @api.route('/list', methods=['GET'])
