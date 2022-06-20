@@ -14,7 +14,7 @@ import app.routes_utils
 
 producer = create_producer()
 
-@api.post('/add')
+@api.post('/post')
 def create():
     '''Create new post. Required json fields are: title, content, image, links.'''
     user: str = request.headers.get("user")
@@ -22,10 +22,10 @@ def create():
         request.json['date'] = datetime.today().replace(microsecond=0)
         post = mongo_api.collection('posts').insert_one({
             "username": user,
-            "title": request.json['title'],
-            "content": request.json['content'],
-            "image": request.json['image'],
-            "links": request.json['links'],
+            "title": request.json['title'], # title isn't optional, so if no title provided, raise keyerror
+            "content": request.json.get('content'),
+            "image": request.json.get('image'),
+            "links": request.json.get('links'),
         })
 
         if (producer):
@@ -35,34 +35,28 @@ def create():
 
     return jsonify(str(post.inserted_id))
 
-@api.route('/list', methods=['GET'])
-def read():
-    """
-        read() : Fetches documents from collection as JSON.
-    """
+@api.get('/post')
+def get_all():
+    """ Fetches documents from collection as JSON."""
     try:
         posts_documents = mongo_api.collection('posts').find()
         posts: list[dict] = [post_document for post_document in posts_documents]
         for post in posts: post['_id'] = str(post['_id'])
-        return jsonify(posts), 200
+        return jsonify(posts)
     except Exception as e:
         return f"An Error Occurred: {e}"
         
-@api.route('/find', methods=['GET'])
-def find():
-    """
-        delete() : Fetches one documents from collection as JSON.
-        e.g. = http://localhost/find?id=post1
-    """
+@api.get('/post/<int:doc_id>')
+def find(doc_id: int):
+    '''Get one post with id.'''
     try:
-        doc_id = request.args.get('id')        
         document = mongo_api.collection('posts').find_one({ "_id": ObjectId(doc_id)}) 
         document['_id'] = str(document['_id'])
         return jsonify(document), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/like', methods=['POST'])
+@api.post('/like')
 def like_post():
     """
         like_post() : Add username in post 'likes' array filed.
@@ -83,7 +77,7 @@ def like_post():
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/dislike', methods=['POST'])
+@api.post('/dislike')
 def dislike_post():
     """
         dislike_post() : Add username in post 'dislikes' array filed.
@@ -104,7 +98,7 @@ def dislike_post():
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/comment', methods=['POST'])
+@api.post('/comment')
 def post_comment():
     """
         post_comment() : Add a comment to the post.
@@ -130,7 +124,7 @@ def post_comment():
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/comment', methods=['DELETE'])
+@api.delete('/comment')
 def delete_comment():
     """
         delete_comment() : Deletes a comment.
@@ -152,7 +146,7 @@ def delete_comment():
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/delete', methods=['GET', 'DELETE'])
+@api.delete('/delete')
 def delete():
     """
         delete() : Delete a document from collection.
@@ -166,7 +160,7 @@ def delete():
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/update', methods=['POST', 'PUT'])
+@api.put('/update')
 def update():
     """
         update() : Update document in collection with request body.
