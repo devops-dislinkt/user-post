@@ -26,6 +26,7 @@ def create():
             "content": request.json.get('content'),
             "image": request.json.get('image'),
             "links": request.json.get('links'),
+            "date": request.json.get('links')
         })
 
         if (producer):
@@ -35,17 +36,19 @@ def create():
 
     return jsonify(str(post.inserted_id))
 
-@api.get('/post')
-def get_all():
-    """ Fetches documents from collection as JSON."""
+@api.get('/post/<username>')
+def get_all(username:str):
+    """ Fetches documents from posts for specifies username."""
     try:
         posts_documents = mongo_api.collection('posts').find()
-        posts: list[dict] = [post_document for post_document in posts_documents]
+        posts: list[dict] = [post_document for post_document in posts_documents if post_document['username'] == username]
+        
         for post in posts: post['_id'] = str(post['_id'])
         return jsonify(posts)
     except Exception as e:
-        return f"An Error Occurred: {e}"
+        return f"An Error Occurred: {e}", 400
         
+
 @api.get('/post/<int:doc_id>')
 def find(doc_id: int):
     '''Get one post with id.'''
