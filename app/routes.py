@@ -26,7 +26,7 @@ def create():
             "content": request.json.get('content'),
             "image": request.json.get('image'),
             "links": request.json.get('links'),
-            "date": request.json.get('links')
+            "date": request.json.get('date')
         })
 
         if (producer):
@@ -68,11 +68,9 @@ def like_post():
                         "username" : "username1"
                     }
     """
-    # TODO like twice
     try:
         post_id = request.json['post_id']
-        username = request.json['username'] 
-
+        username = request.json['username']
         mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$push': {'like': username}})
         mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$pull': {'dislike': username}})
 
@@ -89,7 +87,6 @@ def dislike_post():
                         "username" : "username1"
                     }
     """
-    # TODO dislike twice
     try:
         post_id = request.json['post_id']
         username = request.json['username']
