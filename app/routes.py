@@ -10,36 +10,26 @@ from app.kafka_utils import create_producer
 from os import environ
 
 api = Blueprint('api', __name__)
-
+import app.routes_utils
 
 producer = create_producer()
 
 @api.post('/add')
 def create():
-    """
-        create() : Add document to Firestore collection with request body.
-        Ensure you pass a custom ID as part of json body in post request,
-        e.g. json=  {
-                        "id": "post2",
-                        "username": "user1",
-                        "title": "Post title",
-                        "content": "text content",
-                        "images": ["img1","img2"],
-                        "links": ["link1", "link2"],
-                        "like": [],
-                        "dislike": [],
-                        "comments": [{"username": "user2","comment": "comment2"},{"username": "user10","comment": "comment10"}]
-                    }
-    """
+    '''Create new post. Required json fields are: title, content, image, links.'''
     user: str = request.headers.get("user")
     try:
         request.json['date'] = datetime.today().replace(microsecond=0)
-        post = mongo_api.collection('posts').insert_one(request.json)
+        post = mongo_api.collection('posts').insert_one({
+            "username": user,
+            "title": request.json['title'],
+            "content": request.json['content'],
+            "image": request.json['image'],
+            "links": request.json['links'],
+        })
 
         if (producer):
             producer.send(environ['KAFKA_TOPIC'], {'username': user, 'post_title': request.json['title'], 'post_id': str(post.inserted_id) })
-    except DuplicateKeyError:
-        return jsonify("username not unique"), 400
     except KafkaError as err:
          print("kafka producer - Exception during sending message to producer - {}".format(err))
 
@@ -200,11 +190,3 @@ def update():
         return jsonify({"success": True}), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
-
-# allow all origin
-@api.after_request
-def after_request(response):
-    header = response.headers
-    header['Access-Control-Allow-Origin'] = '*'
-    header['Access-Control-Allow-Headers'] = '*'
-    return response
