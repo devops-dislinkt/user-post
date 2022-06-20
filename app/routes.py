@@ -14,7 +14,7 @@ api = Blueprint('api', __name__)
 
 producer = create_producer()
 
-@api.route('/add', methods=['POST'])
+@api.post('/add')
 def create():
     """
         create() : Add document to Firestore collection with request body.
@@ -41,8 +41,9 @@ def create():
     except DuplicateKeyError:
         return jsonify("username not unique"), 400
     except KafkaError as err:
-         print("kafka producer - Exception during sending message to producer - {}".format(err)) 
-    return jsonify({"success": True}), 200
+         print("kafka producer - Exception during sending message to producer - {}".format(err))
+
+    return jsonify(str(post.inserted_id))
 
 @api.route('/list', methods=['GET'])
 def read():
