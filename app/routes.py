@@ -12,9 +12,12 @@ from os import environ
 api = Blueprint('api', __name__)
 import app.routes_utils
 
+#public api, auth not required
+public_api = Blueprint("", __name__)
+
 producer = create_producer()
 
-@api.post('/post')
+@api.post('/post/')
 def create():
     '''Create new post. Required json fields are: title, content, image, links.'''
     user: str = request.headers.get("user")
@@ -36,7 +39,7 @@ def create():
 
     return jsonify(str(post.inserted_id))
 
-@api.get('/post/<username>')
+@public_api.get('/post/<username>')
 def get_all(username:str):
     """ Fetches documents from posts for specifies username."""
     try:
@@ -59,7 +62,7 @@ def find(doc_id: int):
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.post('/like')
+@api.post('/post/like')
 def like_post():
     """
         like_post() : Add username in post 'likes' array filed.
@@ -78,7 +81,7 @@ def like_post():
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.post('/dislike')
+@api.post('/post/dislike')
 def dislike_post():
     """
         dislike_post() : Add username in post 'dislikes' array filed.
@@ -98,7 +101,7 @@ def dislike_post():
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.post('/comment')
+@api.post('/post/comment')
 def post_comment():
     """
         post_comment() : Add a comment to the post.
@@ -124,7 +127,7 @@ def post_comment():
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.delete('/comment')
+@api.delete('/post/comment')
 def delete_comment():
     """
         delete_comment() : Deletes a comment.
@@ -146,7 +149,7 @@ def delete_comment():
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.delete('/delete')
+@api.delete('/post/delete')
 def delete():
     """
         delete() : Delete a document from collection.
@@ -160,7 +163,7 @@ def delete():
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.put('/update')
+@api.put('/post/update')
 def update():
     """
         update() : Update document in collection with request body.
