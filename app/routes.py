@@ -10,68 +10,56 @@ from app.kafka_utils import create_producer
 from os import environ
 
 api = Blueprint('api', __name__)
-
+import app.routes_utils
 
 producer = create_producer()
 
-@api.route('/add', methods=['POST'])
+@api.post('/post')
 def create():
-    """
-        create() : Add document to Firestore collection with request body.
-        Ensure you pass a custom ID as part of json body in post request,
-        e.g. json=  {
-                        "id": "post2",
-                        "username": "user1",
-                        "title": "Post title",
-                        "content": "text content",
-                        "images": ["img1","img2"],
-                        "links": ["link1", "link2"],
-                        "like": [],
-                        "dislike": [],
-                        "comments": [{"username": "user2","comment": "comment2"},{"username": "user10","comment": "comment10"}]
-                    }
-    """
+    '''Create new post. Required json fields are: title, content, image, links.'''
     user: str = request.headers.get("user")
     try:
         request.json['date'] = datetime.today().replace(microsecond=0)
-        post = mongo_api.collection('posts').insert_one(request.json)
+        post = mongo_api.collection('posts').insert_one({
+            "username": user,
+            "title": request.json['title'], # title isn't optional, so if no title provided, raise keyerror
+            "content": request.json.get('content'),
+            "image": request.json.get('image'),
+            "links": request.json.get('links'),
+            "date": request.json.get('date')
+        })
 
         if (producer):
             producer.send(environ['KAFKA_TOPIC'], {'username': user, 'post_title': request.json['title'], 'post_id': str(post.inserted_id) })
-    except DuplicateKeyError:
-        return jsonify("username not unique"), 400
     except KafkaError as err:
-         print("kafka producer - Exception during sending message to producer - {}".format(err)) 
-    return jsonify({"success": True}), 200
+         print("kafka producer - Exception during sending message to producer - {}".format(err))
 
-@api.route('/list', methods=['GET'])
-def read():
-    """
-        read() : Fetches documents from collection as JSON.
-    """
+    return jsonify(str(post.inserted_id))
+
+@api.get('/post/<username>')
+def get_all(username:str):
+    """ Fetches documents from posts for specifies username."""
     try:
         posts_documents = mongo_api.collection('posts').find()
-        posts: list[dict] = [post_document for post_document in posts_documents]
-        for post in posts: post['_id'] = str(post['_id'])
-        return jsonify(posts), 200
-    except Exception as e:
-        return f"An Error Occurred: {e}"
+        posts: list[dict] = [post_document for post_document in posts_documents if post_document['username'] == username]
         
-@api.route('/find', methods=['GET'])
-def find():
-    """
-        delete() : Fetches one documents from collection as JSON.
-        e.g. = http://localhost/find?id=post1
-    """
+        for post in posts: post['_id'] = str(post['_id'])
+        return jsonify(posts)
+    except Exception as e:
+        return f"An Error Occurred: {e}", 400
+        
+
+@api.get('/post/<int:doc_id>')
+def find(doc_id: int):
+    '''Get one post with id.'''
     try:
-        doc_id = request.args.get('id')        
         document = mongo_api.collection('posts').find_one({ "_id": ObjectId(doc_id)}) 
         document['_id'] = str(document['_id'])
         return jsonify(document), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/like', methods=['POST'])
+@api.post('/like')
 def like_post():
     """
         like_post() : Add username in post 'likes' array filed.
@@ -80,11 +68,9 @@ def like_post():
                         "username" : "username1"
                     }
     """
-    # TODO like twice
     try:
         post_id = request.json['post_id']
-        username = request.json['username'] 
-
+        username = request.json['username']
         mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$push': {'like': username}})
         mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$pull': {'dislike': username}})
 
@@ -92,7 +78,7 @@ def like_post():
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/dislike', methods=['POST'])
+@api.post('/dislike')
 def dislike_post():
     """
         dislike_post() : Add username in post 'dislikes' array filed.
@@ -101,7 +87,6 @@ def dislike_post():
                         "username" : "username1"
                     }
     """
-    # TODO dislike twice
     try:
         post_id = request.json['post_id']
         username = request.json['username']
@@ -113,7 +98,7 @@ def dislike_post():
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/comment', methods=['POST'])
+@api.post('/comment')
 def post_comment():
     """
         post_comment() : Add a comment to the post.
@@ -139,7 +124,7 @@ def post_comment():
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/comment', methods=['DELETE'])
+@api.delete('/comment')
 def delete_comment():
     """
         delete_comment() : Deletes a comment.
@@ -161,7 +146,7 @@ def delete_comment():
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/delete', methods=['GET', 'DELETE'])
+@api.delete('/delete')
 def delete():
     """
         delete() : Delete a document from collection.
@@ -175,7 +160,7 @@ def delete():
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/update', methods=['POST', 'PUT'])
+@api.put('/update')
 def update():
     """
         update() : Update document in collection with request body.
@@ -199,11 +184,3 @@ def update():
         return jsonify({"success": True}), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
-
-# allow all origin
-@api.after_request
-def after_request(response):
-    header = response.headers
-    header['Access-Control-Allow-Origin'] = '*'
-    header['Access-Control-Allow-Headers'] = '*'
-    return response
