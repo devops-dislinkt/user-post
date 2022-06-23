@@ -1,8 +1,0 @@
-Flask==2.0.2
-pymongo==4.1.1
-pytest==7.1.2
-pytest-env==0.6.2
-jaeger-client
-Flask-Opentracing
-kafka-python==2.0.2
-flask-cors
