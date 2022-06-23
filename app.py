@@ -1,9 +1,15 @@
 from app import create_app
 from jaeger_client import Config
 from flask_opentracing import FlaskTracing
+from flask_cors import CORS, cross_origin
+
+
+
 
 if __name__ == '__main__':
     app = create_app()
+    cors = CORS(app)
+    app.config['CORS_HEADERS'] = 'Content-Type'
 
     config = Config(
         config={
