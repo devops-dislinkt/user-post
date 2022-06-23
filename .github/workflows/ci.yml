@@ -85,17 +85,10 @@ jobs:
           mongodb-db: user_post_test
           mongodb-port: 27018
       - name: Test with pytest
-        run: | 
-              poetry run coverage erase
-              poetry run coverage run --source=user_profile_service -m pytest 
-              poetry run coverage xml
+        run: poetry run pytest
         env:
-            KAFKA_TOPIC: test-topic
-            DATABASE_USERNAME: postgres
-            DATABASE_PASSWORD: root
-            DATABASE_DOmaster: localhost
-            DATABASE_SCHEMA: testdb
-            DATABASE_PORT: 5432
+            FLASK_DATABASE_HOST: localhost
+            FLASK_SECRET_KEY: key
     #----------------------------------------------
     #    get next version
     #----------------------------------------------
