@@ -79,8 +79,10 @@ jobs:
       - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.7.0
         with:
-          mongodb-version: ${{ matrix.mongodb-version }}
-          mongodb-replica-set: test-rs
+          mongodb-version: 4.2
+          mongodb-username: root
+          mongodb-password: password
+          mongodb-db: user_post_test
           mongodb-port: 27018
       - name: Test with pytest
         run: | 
