@@ -109,7 +109,7 @@ jobs:
         uses: actions/upload-artifact@v1
         if: github.event_name == 'push'
         with:
-          name: code-coverage-${{ steps.version.outputs.VERSION }}
+          name: test-coverage-${{ steps.version.outputs.VERSION }}
           path: coverage.xml
   
     #----------------------------------------------
