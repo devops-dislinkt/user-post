@@ -107,7 +107,7 @@ def like_post():
 
         return jsonify({"success": True}), 200
     except Exception as e:
-        return f"An Error Occurred: {e}"
+        return f"An Error Occurred: {e}", 400
 
 
 @api.post("/post/dislike")
@@ -132,7 +132,7 @@ def dislike_post():
 
         return jsonify({"success": True}), 200
     except Exception as e:
-        return f"An Error Occurred: {e}"
+        return f"An Error Occurred: {e}", 400
 
 
 @api.post("/post/comment")
