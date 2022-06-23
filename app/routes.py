@@ -13,6 +13,9 @@ from os import environ
 api = Blueprint("api", __name__)
 import app.routes_utils
 
+#public api, auth not required
+public_api = Blueprint("", __name__)
+
 producer = create_producer()
 
 
@@ -53,10 +56,9 @@ def create():
 
     return jsonify(str(post.inserted_id))
 
-
-@api.get("/post/<username>")
-def get_all(username: str):
-    """Fetches documents from posts for specifies username."""
+@public_api.get('/post/<username>')
+def get_all(username:str):
+    """ Fetches documents from posts for specifies username."""
     try:
         posts_documents = mongo_api.collection("posts").find()
         posts: list[dict] = [

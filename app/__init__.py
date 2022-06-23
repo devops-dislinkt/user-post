@@ -48,6 +48,8 @@ def create_app(env: Literal["prod", "test"] = "prod"):
         else:
             mongo_api.database = con["user_post"]
 
-        flask_app.register_blueprint(routes.api, url_prefix="/api")
+        flask_app.register_blueprint(routes.api, url_prefix='/api')
+        flask_app.register_blueprint(routes.public_api)
+
 
     return flask_app
