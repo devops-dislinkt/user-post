@@ -1,7 +1,9 @@
-FROM python:3.7
+FROM python:3.10-slim-buster
 WORKDIR /code
-COPY requirements.txt requirements.txt
-RUN pip install -r requirements.txt
+RUN pip install poetry
 COPY . .
-EXPOSE 8080
-CMD ["python", "app.py"]
+RUN poetry config virtualenvs.create false
+RUN poetry install
+EXPOSE 8070
+WORKDIR /code/app
+ENTRYPOINT ["poetry", "run", "python", "run.py"]

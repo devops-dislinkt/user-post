@@ -1,189 +1,230 @@
 from flask import jsonify, request, current_app, Blueprint, g
+
 # from app import app, posts_col
 from pymongo.errors import DuplicateKeyError
+from kafka.errors import KafkaError
 from bson.objectid import ObjectId
 import json
 from datetime import datetime
 from app import mongo_api
+from app.kafka_utils import create_producer
+from os import environ
 
-api = Blueprint('api', __name__)
+api = Blueprint("api", __name__)
+import app.routes_utils
 
-@api.route('/add', methods=['POST'])
+# public api, auth not required
+public_api = Blueprint("", __name__)
+
+producer = create_producer()
+
+
+@api.post("/post/add")
 def create():
-    """
-        create() : Add document to Firestore collection with request body.
-        Ensure you pass a custom ID as part of json body in post request,
-        e.g. json=  {
-                        "id": "post2",
-                        "username": "user1",
-                        "title": "Post title",
-                        "content": "text content",
-                        "images": ["img1","img2"],
-                        "links": ["link1", "link2"],
-                        "like": [],
-                        "dislike": [],
-                        "comments": [{"username": "user2","comment": "comment2"},{"username": "user10","comment": "comment10"}]
-                    }
-    """
+    """Create new post. Required json fields are: title, content, image, links."""
+    user: str = request.headers.get("user")
     try:
-         request.json['date'] = datetime.today().replace(microsecond=0)
-         mongo_api.collection('posts').insert_one(request.json)                
-    except DuplicateKeyError:
-        return jsonify("username not unique"), 400
-    return jsonify({"success": True}), 200
+        request.json["date"] = datetime.today().replace(microsecond=0)
+        post = mongo_api.collection("posts").insert_one(
+            {
+                "username": user,
+                "title": request.json[
+                    "title"
+                ],  # title isn't optional, so if no title provided, raise keyerror
+                "content": request.json.get("content"),
+                "image": request.json.get("image"),
+                "links": request.json.get("links"),
+                "date": request.json.get("date"),
+            }
+        )
 
-@api.route('/list', methods=['GET'])
-def read():
-    """
-        read() : Fetches documents from collection as JSON.
-    """
+        if producer:
+            producer.send(
+                environ["KAFKA_TOPIC"],
+                {
+                    "username": user,
+                    "post_title": request.json["title"],
+                    "post_id": str(post.inserted_id),
+                },
+            )
+    except KafkaError as err:
+        print(
+            "kafka producer - Exception during sending message to producer - {}".format(
+                err
+            )
+        )
+
+    return jsonify(str(post.inserted_id))
+
+
+@public_api.get("/post/<username>")
+def get_all(username: str):
+    """Fetches documents from posts for specifies username."""
     try:
-        posts_documents = mongo_api.collection('posts').find()
-        posts: list[dict] = [post_document for post_document in posts_documents]
-        for post in posts: post['_id'] = str(post['_id'])
-        return jsonify(posts), 200
+        posts_documents = mongo_api.collection("posts").find()
+        posts: list[dict] = [
+            post_document
+            for post_document in posts_documents
+            if post_document["username"] == username
+        ]
+
+        for post in posts:
+            post["_id"] = str(post["_id"])
+        return jsonify(posts)
     except Exception as e:
-        return f"An Error Occurred: {e}"
-        
-@api.route('/find', methods=['GET'])
-def find():
-    """
-        delete() : Fetches one documents from collection as JSON.
-        e.g. = http://localhost/find?id=post1
-    """
+        return f"An Error Occurred: {e}", 400
+
+
+@api.get("/post/<int:doc_id>")
+def find(doc_id: int):
+    """Get one post with id."""
     try:
-        doc_id = request.args.get('id')        
-        document = mongo_api.collection('posts').find_one({ "_id": ObjectId(doc_id)}) 
-        document['_id'] = str(document['_id'])
+        document = mongo_api.collection("posts").find_one({"_id": ObjectId(doc_id)})
+        document["_id"] = str(document["_id"])
         return jsonify(document), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/like', methods=['POST'])
+
+@api.post("/post/like")
 def like_post():
     """
-        like_post() : Add username in post 'likes' array filed.
-        e.g. json=  {
-                        "post_id" : "post1",
-                        "username" : "username1"
-                    }
+    like_post() : Add username in post 'likes' array filed.
+    e.g. json=  {
+                    "post_id" : "post1",
+                    "username" : "username1"
+                }
     """
-    # TODO like twice
     try:
-        post_id = request.json['post_id']
-        username = request.json['username'] 
-
-        mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$push': {'like': username}})
-        mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$pull': {'dislike': username}})
+        post_id = request.json["post_id"]
+        username = request.json["username"]
+        mongo_api.collection("posts").update_one(
+            {"_id": ObjectId(post_id)}, {"$push": {"like": username}}
+        )
+        mongo_api.collection("posts").update_one(
+            {"_id": ObjectId(post_id)}, {"$pull": {"dislike": username}}
+        )
 
         return jsonify({"success": True}), 200
     except Exception as e:
-        return f"An Error Occurred: {e}"
+        return f"An Error Occurred: {e}", 400
 
-@api.route('/dislike', methods=['POST'])
+
+@api.post("/post/dislike")
 def dislike_post():
     """
-        dislike_post() : Add username in post 'dislikes' array filed.
-        e.g. json=  {
-                        "post_id" : "post1",
-                        "username" : "username1"
-                    }
+    dislike_post() : Add username in post 'dislikes' array filed.
+    e.g. json=  {
+                    "post_id" : "post1",
+                    "username" : "username1"
+                }
     """
-    # TODO dislike twice
     try:
-        post_id = request.json['post_id']
-        username = request.json['username']
+        post_id = request.json["post_id"]
+        username = request.json["username"]
 
-        mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$push': {'dislike': username}})
-        mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$pull': {'like': username}})
+        mongo_api.collection("posts").update_one(
+            {"_id": ObjectId(post_id)}, {"$push": {"dislike": username}}
+        )
+        mongo_api.collection("posts").update_one(
+            {"_id": ObjectId(post_id)}, {"$pull": {"like": username}}
+        )
 
         return jsonify({"success": True}), 200
     except Exception as e:
-        return f"An Error Occurred: {e}"
+        return f"An Error Occurred: {e}", 400
 
-@api.route('/comment', methods=['POST'])
+
+@api.post("/post/comment")
 def post_comment():
     """
-        post_comment() : Add a comment to the post.
-        e.g. json=  {
-                        "post_id" : "post1",
-                        "username" : "username1",
-                        "comment" : "comment text"
-                    }
+    post_comment() : Add a comment to the post.
+    e.g. json=  {
+                    "post_id" : "post1",
+                    "username" : "username1",
+                    "comment" : "comment text"
+                }
     """
     try:
-        post_id = request.json['post_id']
-        username = request.json['username']
-        comment = request.json['comment']
-        
+        post_id = request.json["post_id"]
+        username = request.json["username"]
+        comment = request.json["comment"]
+
         comment_obj = {
-                        "username": username,
-                        "comment": comment, 
-                        'date': datetime.today().replace(microsecond=0)
-                      }
-        mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$push': {'comments': comment_obj}})
+            "username": username,
+            "comment": comment,
+            "date": datetime.today().replace(microsecond=0),
+        }
+        mongo_api.collection("posts").update_one(
+            {"_id": ObjectId(post_id)}, {"$push": {"comments": comment_obj}}
+        )
 
         return jsonify({"success": True}), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/comment', methods=['DELETE'])
+
+@api.delete("/post/comment")
 def delete_comment():
     """
-        delete_comment() : Deletes a comment.
-        e.g. json=  {
-                        "post_id" : "post1",
-                        "username" : "username1",
-                        "comment" : "comment text"
-                    }
+    delete_comment() : Deletes a comment.
+    e.g. json=  {
+                    "post_id" : "post1",
+                    "username" : "username1",
+                    "comment" : "comment text"
+                }
     """
     try:
-        post_id = request.json['post_id']
-        username = request.json['username']
-        comment = request.json['comment']
-        
-        comment_obj = {"username": username,"comment": comment}
-        mongo_api.collection('posts').update_one({'_id': ObjectId(post_id)}, {'$pull': {'comments': comment_obj}})
+        post_id = request.json["post_id"]
+        username = request.json["username"]
+        comment = request.json["comment"]
+
+        comment_obj = {"username": username, "comment": comment}
+        mongo_api.collection("posts").update_one(
+            {"_id": ObjectId(post_id)}, {"$pull": {"comments": comment_obj}}
+        )
 
         return jsonify({"success": True}), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/delete', methods=['GET', 'DELETE'])
+
+@api.delete("/post/delete")
 def delete():
     """
-        delete() : Delete a document from collection.
-        e.g. = http://localhost/delete?id=post1
+    delete() : Delete a document from collection.
+    e.g. = http://localhost/delete?id=post1
     """
     try:
-        doc_id = request.args.get('id')        
-        mongo_api.collection('posts').delete_one({ "_id": ObjectId(doc_id)}) 
+        doc_id = request.args.get("id")
+        mongo_api.collection("posts").delete_one({"_id": ObjectId(doc_id)})
 
         return jsonify({"success": True}), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
 
-@api.route('/update', methods=['POST', 'PUT'])
+
+@api.put("/post/update")
 def update():
     """
-        update() : Update document in collection with request body.
-        Ensure you pass a custom ID as part of json body in post request,
-        e.g. json=  {
-                        "id": "post1",
-                        "title": "NEW post title",
-                        "content": "NEW text content",
-                    }
+    update() : Update document in collection with request body.
+    Ensure you pass a custom ID as part of json body in post request,
+    e.g. json=  {
+                    "id": "post1",
+                    "title": "NEW post title",
+                    "content": "NEW text content",
+                }
     """
     try:
-        doc_id = request.json['id']
-        
-        myquery = { "_id": ObjectId(doc_id) }
-        request.json.pop('id', None)
+        doc_id = request.json["id"]
 
-        newvalues = { "$set": request.json }
+        myquery = {"_id": ObjectId(doc_id)}
+        request.json.pop("id", None)
 
-        mongo_api.collection('posts').update_one(myquery, newvalues)
-        
+        newvalues = {"$set": request.json}
+
+        mongo_api.collection("posts").update_one(myquery, newvalues)
+
         return jsonify({"success": True}), 200
     except Exception as e:
         return f"An Error Occurred: {e}"
