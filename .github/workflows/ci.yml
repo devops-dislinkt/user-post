@@ -85,7 +85,10 @@ jobs:
           mongodb-db: user_post_test
           mongodb-port: 27018
       - name: Test with pytest
-        run: poetry run pytest
+        run: | 
+              poetry run coverage erase
+              poetry run coverage run --source=app -m pytest 
+              poetry run coverage xml
         env:
             FLASK_DATABASE_HOST: localhost
             FLASK_SECRET_KEY: key
